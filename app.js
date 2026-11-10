@@ -53,6 +53,7 @@
     var mins = Math.max(1, Math.ceil((next - d) / 60000));
     var h = Math.floor(mins / 60), m = mins % 60;
     if (h === 0) return m + ' мин';
+    if (m === 0) return h + ' ч';
     return h + ' ч ' + m + ' мин';
   }
 
@@ -119,6 +120,9 @@
     store.set('card', { d: dayKey(now()), i: i });
     return i;
   }
+  function longestWord(s) {
+    return Math.max(8, Math.max.apply(null, s.split(/\s+/).map(function (w) { return w.length; })));
+  }
   function roman(n) {
     if (n === 0) return '0';
     var map = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']], out = '';
@@ -139,6 +143,25 @@
     } while ((i === last || i === undefined) && guard < 50);
     store.set('lastAnswer', i);
     return i;
+  }
+
+  /* Вопрос о здоровье или жизни близких: шар не отвечает «да/нет», а поддерживает. */
+  var CARE_SKIP = ['здорово', 'здоровать', 'здоровал', 'здороваю', 'здоровает'];
+  function isCareQuestion(q) {
+    var words = q.toLowerCase().replace(/ё/g, 'е').split(/[^а-яa-z]+/);
+    var roots = (C.careWords || []).map(function (w) { return w.replace(/ё/g, 'е'); });
+    return words.some(function (w) {
+      if (!w) return false;
+      if (CARE_SKIP.some(function (x) { return w.indexOf(x) === 0; })) return false;
+      return roots.some(function (r) { return w.indexOf(r) === 0; });
+    });
+  }
+  var lastCare = -1;
+  function pickCare() {
+    var list = C.yesnoCare, i;
+    do { i = Math.floor(Math.random() * list.length); } while (i === lastCare && list.length > 1);
+    lastCare = i;
+    return list[i];
   }
 
   /* ---------- Поделиться ---------- */
@@ -186,8 +209,9 @@
       fail();
     }
   }
-  function share(text) {
-    var full = text + '\n' + appUrl();
+  /* hash — куда вести друга по ссылке (например '#/horo/leo'); без него — на главный. */
+  function share(text, hash) {
+    var full = text + '\n' + appUrl() + (hash || '');
     if (navigator.share) {
       var p;
       try { p = navigator.share({ text: full }); } catch (e) { copyText(full); return; }
@@ -240,7 +264,9 @@
   }
 
   var current = { share: null };
+  var renderedDay = null;
   function render(moved) {
+    renderedDay = dayKey(now());
     clearTimers();
     var t = document.getElementById('toast');
     t.classList.remove('show'); t.hidden = true;
@@ -328,7 +354,7 @@
     front.innerHTML =
       '<span class="tf-num">' + roman(card.n) + '</span>' +
       '<span class="tf-sym">' + ART.tarot(card.n) + '</span>' +
-      '<span class="tf-name">' + esc(card.name) + '</span>';
+      '<span class="tf-name" style="--len:' + longestWord(card.name) + '">' + esc(card.name) + '</span>';
     btn.removeEventListener('click', onDraw);
     btn.setAttribute('aria-label', 'Ваша карта дня: ' + card.name);
     btn.setAttribute('aria-disabled', 'true');
@@ -352,6 +378,7 @@
       info.classList.add('appear');
       updateNext();
       timers.push(setInterval(updateNext, 30000));
+      if (animate) showBelow(info, info.querySelector('.card-name'), app.querySelector('.card-layout'));
     };
     if (animate && !reducedMotion()) timers.push(setTimeout(put, 650)); else put();
     current.share = function () {
@@ -359,11 +386,27 @@
     };
   }
   function updateNext() {
+    if (checkDay()) return;
     var el = document.getElementById('next-card');
     if (el) el.textContent = 'Новая карта — завтра. Откроется через ' + untilMidnight(now()) + '.';
   }
+  /* Раскладка «картинка слева, текст справа» (альбом) — текст и так рядом, прокручивать не надо. */
+  function sideBySide(layout) {
+    return layout && window.getComputedStyle(layout).flexDirection === 'row';
+  }
+  /* Карта открылась, а текст ниже края экрана — плавно подвинуть страницу так,
+   * чтобы название было в верхней части экрана и было видно, что дальше есть текст. */
+  function showBelow(block, title, layout) {
+    if (!block || !title || sideBySide(layout)) return;
+    var vh = window.innerHeight, r = block.getBoundingClientRect();
+    if (r.bottom <= vh) return;
+    var t = title.getBoundingClientRect().top;
+    var y = window.pageYOffset + t - Math.round(vh * 0.18);
+    if (y > window.pageYOffset) window.scrollTo({ top: y, behavior: reducedMotion() ? 'auto' : 'smooth' });
+  }
   /* Если результат ниже края экрана — плавно подвинуть страницу, чтобы его было видно. */
-  function revealIntoView(el) {
+  function revealIntoView(el, layout) {
+    if (sideBySide(layout)) return;
     var r = el.getBoundingClientRect(), vh = window.innerHeight;
     if (r.top > vh * 0.6 || r.bottom > vh) {
       var y = window.pageYOffset + r.top - Math.max(16, vh - r.height - 16);
@@ -387,7 +430,8 @@
       '<div class="ball" id="ball">' + ART.ball() + '</div>' +
       '<div class="yn-side">' +
       '<label class="field-label" for="q">Задайте вопрос мысленно или напишите его здесь <span class="opt">(необязательно)</span></label>' +
-      '<input id="q" class="field" type="text" maxlength="140" autocomplete="off" enterkeyhint="go" placeholder="Например: ехать ли на дачу?">' +
+      '<input id="q" class="field" type="text" maxlength="140" autocomplete="off" enterkeyhint="go" placeholder="Например: затевать ли ремонт?" aria-describedby="q-hint">' +
+      '<p class="field-hint" id="q-hint">Шар отвечает на житейские вопросы — о делах, планах и решениях.</p>' +
       '<button type="button" class="btn btn-gold btn-big" data-action="ask" id="ask">Узнать ответ</button>' +
       '<div class="answer" id="answer" aria-live="polite"></div>' +
       '</div></div>';
@@ -408,21 +452,22 @@
     out.classList.remove('appear');
     ball.classList.remove('done');
     ball.classList.add('thinking');
-    var i = pickAnswer(), a = C.yesno[i];
+    var care = isCareQuestion(question);
+    var a = care ? pickCare() : C.yesno[pickAnswer()];
     timers.push(setTimeout(function () {
       ball.classList.remove('thinking');
       ball.classList.add('done');
       out.innerHTML =
         (question ? '<p class="your-q">Ваш вопрос: «' + esc(question) + '»</p>' : '') +
-        '<p class="answer-title kind-' + a.kind + '">' + esc(a.title) + '</p>' +
+        '<p class="answer-title kind-' + (care ? 'care' : a.kind) + '">' + esc(a.title) + '</p>' +
         '<p class="answer-text">' + esc(a.text) + '</p>' +
-        '<div class="actions">' + shareBtn() + '</div>';
+        (care ? '' : '<div class="actions">' + shareBtn() + '</div>');
       out.classList.add('appear');
-      revealIntoView(out);
+      revealIntoView(out, app.querySelector('.yn-layout'));
       btn.disabled = false;
       btn.textContent = 'Спросить ещё раз';
       asking = false;
-      current.share = function () {
+      current.share = care ? null : function () {
         share('Волшебный шар ответил мне: «' + a.title + '» 🔮\n' + a.text + '\nЗадай свой вопрос:');
       };
     }, reducedMotion() ? 400 : 1800));
@@ -484,7 +529,7 @@
       '<button type="button" class="btn btn-outline btn-wide" data-action="back">Другие знаки</button>';
     var advice = h.parts[h.parts.length - 1].text;
     current.share = function () {
-      share(s.name + ', гороскоп на ' + dateText(d) + ' ✨\nСовет дня: ' + advice + '\nУзнай свой:');
+      share(s.name + ', гороскоп на ' + dateText(d) + ' ✨\nСовет дня: ' + advice + '\nУзнай свой:', '#/horo/' + s.id);
     };
   }
   function toggleMine(btn) {
@@ -522,6 +567,21 @@
     }
   });
 
+  /* Смена дня, пока экран открыт (через полночь или вернулись на вкладку утром):
+   * перерисовываем экран — на карте закрытая колода, в гороскопе новый текст, на главном новая дата.
+   * «Да или нет» не трогаем: там нет даты, а ответ на экране человеку ещё нужен. */
+  function checkDay() {
+    if (dayKey(now()) === renderedDay) return false;
+    if (route()[0] === 'yesno') { renderedDay = dayKey(now()); return false; }
+    render(false);
+    window.scrollTo(0, 0);
+    return true;
+  }
+  setInterval(checkDay, 30000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDay(); });
+  window.addEventListener('focus', checkDay);
+  window.addEventListener('pageshow', checkDay);
+
   window.addEventListener('popstate', function () { render(true); });
   window.addEventListener('hashchange', function () {
     /* Ручная правка адреса: страница уже показана через popstate, если он был. */
@@ -534,5 +594,5 @@
   render(false);
 
   /* Для самопроверки (не используется интерфейсом). */
-  window.__fh = { horoscopeFor: horoscopeFor, dayNumber: dayNumber, pickAnswer: pickAnswer };
+  window.__fh = { horoscopeFor: horoscopeFor, dayNumber: dayNumber, pickAnswer: pickAnswer, isCareQuestion: isCareQuestion };
 })();

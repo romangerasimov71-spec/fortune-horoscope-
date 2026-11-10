@@ -179,7 +179,7 @@ button { font: inherit; color: inherit; }
 .tarot-front {
   transform: rotateY(180deg);
   display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-  padding: 14px 10px 16px;
+  padding: 14px 8px 16px;
   background: linear-gradient(180deg, #fff6dd, #f5e2b0);
   border: 6px solid #2a1d66;
   outline: 2px solid var(--gold); outline-offset: -12px;
@@ -188,7 +188,13 @@ button { font: inherit; color: inherit; }
 .tf-num { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; color: #6a3f0e; padding-top: 6px; }
 .tf-sym { flex: 1; display: grid; place-items: center; width: 100%; }
 .tf-sym svg { width: 92%; height: auto; color: #3a2470; }
-.tf-name { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; text-align: center; line-height: 1.15; color: #3a2470; padding: 0 6px 6px; }
+.tf-name { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; text-align: center; line-height: 1.15; color: #3a2470; padding: 0 2px 6px; max-width: 100%; overflow-wrap: anywhere; hyphens: auto; }
+/* Длинное слово в названии (Справедливость) уменьшаем по ширине карты, чтобы не вылезало за рамку.
+   --len — длина самого длинного слова (из app.js). Крупное название всё равно есть под картой. */
+@supports (width: 1cqi) {
+  .tarot-front { container-type: inline-size; }
+  .tf-name { font-size: min(1.1rem, calc(150cqi / var(--len, 8))); }
+}
 
 .card-info { width: 100%; text-align: left; }
 .card-info .lead { text-align: center; }
@@ -239,6 +245,7 @@ button { font: inherit; color: inherit; }
   border-radius: 14px;
   margin-bottom: 16px;
 }
+.field-hint { font-size: 1rem; color: var(--text-2); margin: -6px 0 16px; }
 .field::placeholder { color: #5d5280; opacity: 1; }
 .field:focus { outline: 3px solid #fff; outline-offset: 2px; }
 
@@ -248,6 +255,7 @@ button { font: inherit; color: inherit; }
 .kind-yes { color: var(--yes); }
 .kind-no { color: var(--no); }
 .kind-maybe { color: var(--maybe); }
+.kind-care { color: var(--gold); }
 .answer-text { font-size: 1.15rem; line-height: 1.5; }
 .answer .actions { justify-content: center; }
 
