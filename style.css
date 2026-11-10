@@ -323,6 +323,7 @@ button { font: inherit; color: inherit; }
   border: 3px solid var(--gold);
   font-size: 1.1rem; font-weight: 700; text-align: center;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  pointer-events: none;
   opacity: 0;
   transition: opacity .25s, transform .25s;
 }

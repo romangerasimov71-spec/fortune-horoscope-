@@ -534,5 +534,5 @@
   render(false);
 
   /* Для самопроверки (не используется интерфейсом). */
-  window.__fh = { horoscopeFor: horoscopeFor, dayNumber: dayNumber, pickIndex: pickIndex };
+  window.__fh = { horoscopeFor: horoscopeFor, dayNumber: dayNumber, pickAnswer: pickAnswer };
 })();
