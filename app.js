@@ -590,11 +590,19 @@
       });
     };
   }
+  /* Тексты гороскопа написаны «на сегодня»; в блоке «на завтра» те же фразы говорят «завтра».
+   * Смысл тот же, что завтра покажет «сегодня», меняются только эти слова. */
+  function toTomorrow(t) {
+    return t.replace(/случились сегодня/g, 'случились за день')
+      .replace(/Сегодня/g, 'Завтра').replace(/сегодня/g, 'завтра')
+      .replace(/вчера/g, 'раньше');
+  }
   /* Блок «Гороскоп на завтра»: открыт — текст; нет — кнопка за рекламу (если реклама есть). */
   function tomorrowHtml(idx) {
     var s = C.zodiac[idx];
     if (tomorrowOpened().indexOf(s.id) >= 0) {
       var t = addDays(now(), 1), h = horoscopeFor(idx, t);
+      h.parts.forEach(function (p) { p.text = toTomorrow(p.text); });
       return '<section class="tomorrow is-open" id="tomorrow" aria-labelledby="tomorrow-title">' +
         '<h2 class="tomorrow-title" id="tomorrow-title">Гороскоп на завтра</h2>' +
         '<p class="lead">' + cap(weekday(t)) + ', ' + dateText(t) + '</p>' +
@@ -843,7 +851,7 @@
   /* Для самопроверки и набора проверки рекламы (не используется интерфейсом). */
   window.__fh = {
     horoscopeFor: horoscopeFor, dayNumber: dayNumber, pickAnswer: pickAnswer, isCareQuestion: isCareQuestion,
-    compatFor: compatFor, tomorrowCount: function () { return tomorrowOpened().length; },
+    compatFor: compatFor, toTomorrow: toTomorrow, tomorrowCount: function () { return tomorrowOpened().length; },
     isPaused: function () { return document.body.classList.contains('paused'); },
     adWaiting: function () { return adWaiting; },
     started: function () { return started; },
