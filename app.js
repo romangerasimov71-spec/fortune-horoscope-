@@ -302,9 +302,27 @@
     if (parts[0] === 'compat' && parts[1]) return '#/compat';
     return '#/';
   }
+  /* История браузера повторяет «этажи» приложения: главный (0) → раздел (1: карта, шар, знаки, выбор пары)
+   * → подробно (2: знак, итог пары). Переход на тот же этаж (другая пара, другой знак) заменяет шаг, а не
+   * добавляет: сколько пар ни посмотри, до главного не больше двух «Назад» (и кнопкой, и системной). */
+  function levelOf(parts) { return !parts[0] ? 0 : (parts[1] ? 2 : 1); }
+  function partsOf(hash) { return String(hash).replace(/^#\/?/, '').split('/').filter(Boolean); }
+  var pendingHash = null;   // куда встать после history.go(-n)
   function go(hash) {
+    var cl = levelOf(route()), tl = levelOf(partsOf(hash));
     var depth = (history.state && history.state.depth) || 0;
-    history.pushState({ depth: depth + 1 }, '', hash);
+    if (tl > cl) {
+      if (tl - cl === 2) { history.pushState({ depth: depth + 1 }, '', parentOf(partsOf(hash))); depth++; }
+      history.pushState({ depth: depth + 1 }, '', hash);
+    } else if (tl === cl) {
+      history.replaceState({ depth: depth }, '', hash);
+    } else if (depth >= cl - tl) {
+      pendingHash = hash;
+      history.go(tl - cl);
+      return;
+    } else {
+      history.replaceState({ depth: 0 }, '', hash);
+    }
     render(true);
   }
   function back() {
@@ -314,6 +332,14 @@
       history.replaceState({ depth: 0 }, '', parentOf(route()));
       render(true);
     }
+  }
+  /* Вход по прямой ссылке (#/horo/leo, #/compat/leo/pisces): подкладываем в историю главный и раздел,
+   * чтобы системная «назад» вела по приложению, а не уходила из него. */
+  function seedHistory() {
+    var parts = route(), lv = levelOf(parts), here = location.hash;
+    history.replaceState({ depth: 0 }, '', '#/');
+    if (lv >= 2) history.pushState({ depth: 1 }, '', parentOf(parts));
+    if (lv >= 1) history.pushState({ depth: lv }, '', here);
   }
 
   var current = { share: null };
@@ -898,7 +924,7 @@
     var pl = typeof P.payload === 'string' ? P.payload.replace(/^#?\/?/, '') : '';
     if (!pl || !ROUTE_RE.test(pl)) return;
     if (location.hash && location.hash !== '#/' && location.hash !== '#') return;
-    history.replaceState({ depth: 0 }, '', '#/' + pl);
+    history.replaceState(null, '', '#/' + pl);   // историю подложит seedHistory()
   }
 
   /* ---------- Старт ---------- */
@@ -909,7 +935,7 @@
     var splash = document.getElementById('splash');
     if (splash) splash.parentNode.removeChild(splash);
     applyPayload();
-    if (!history.state) history.replaceState({ depth: 0 }, '', location.hash || '#/');
+    if (!history.state) seedHistory();
     render(false);
     A.event('app_open', { platform: P.id, bridge: P.hasBridge });
     A.event('screen', { name: lastScreen });
@@ -918,7 +944,14 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDay(); });
     window.addEventListener('focus', checkDay);
     window.addEventListener('pageshow', checkDay);
-    window.addEventListener('popstate', function () { render(true); });
+    window.addEventListener('popstate', function () {
+      if (pendingHash) {
+        var h = pendingHash;
+        pendingHash = null;
+        if (location.hash !== h) history.replaceState(history.state, '', h);
+      }
+      render(true);
+    });
     window.addEventListener('hashchange', function () {
       /* Ручная правка адреса: страница уже показана через popstate, если он был. */
       if (app.getAttribute('data-hash') !== location.hash) render(true);

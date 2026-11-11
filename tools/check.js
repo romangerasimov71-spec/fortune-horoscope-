@@ -314,6 +314,58 @@ async function hashIs(page, h) {
     await ctx.close();
   }
 
+  /* ---------- 5б. «Назад»: история не копится, до главного не больше двух шагов ---------- */
+  {
+    const { ctx, page } = await newPage(browser, VIEWPORTS[0], { time: NOON });
+    const at = () => page.evaluate(() => location.hash);
+    const pairs = [['leo', 'pisces'], ['aries', 'virgo'], ['cancer', 'libra'], ['taurus', 'gemini'], ['scorpio', 'capricorn']];
+    const viewPairs = async () => {
+      await page.click('[data-go="#/compat"]'); await hashIs(page, '#/compat');
+      for (let i = 0; i < pairs.length; i++) {
+        const [a, b] = pairs[i];
+        if (i > 0) { await page.click('[data-action="new-pair"]'); await hashIs(page, '#/compat'); }
+        await page.click('[data-slot="a"]');
+        await page.click('[data-pick="' + a + '"]'); await page.click('[data-pick="' + b + '"]');
+        await hashIs(page, '#/compat/' + a + '/' + b);
+      }
+    };
+    await viewPairs();
+    await page.click('.btn-back'); await hashIs(page, '#/compat');
+    await page.click('.btn-back'); await hashIs(page, '#/');
+    ok(true, '«Назад»: 5 пар подряд → кнопка «Назад» дважды → главный');
+    await viewPairs();
+    await page.goBack(); await hashIs(page, '#/compat');
+    await page.goBack(); await hashIs(page, '#/');
+    ok(true, '«Назад»: 5 пар подряд → системная «назад» дважды → главный');
+    // гороскоп: знак → «Другие знаки» → другой знак … и снова
+    await page.click('[data-go="#/horo"]'); await hashIs(page, '#/horo');
+    for (const id of ['leo', 'virgo', 'aries', 'pisces']) {
+      await page.click('.signs [data-go="#/horo/' + id + '"]'); await hashIs(page, '#/horo/' + id);
+      await page.click('[data-action="back"].btn-wide'); await hashIs(page, '#/horo');
+    }
+    await page.click('.signs [data-go="#/horo/libra"]'); await hashIs(page, '#/horo/libra');
+    await page.goBack(); await hashIs(page, '#/horo');
+    await page.goBack(); await hashIs(page, '#/');
+    // карта и шар
+    for (const h of ['#/card', '#/yesno']) {
+      await page.click('[data-go="' + h + '"]'); await hashIs(page, h);
+      await page.goBack(); await hashIs(page, '#/');
+    }
+    ok(true, '«Назад»: гороскоп (5 знаков), карта, шар — до главного не больше двух шагов');
+    // прямые ссылки
+    for (const [h, mid] of [['#/compat/leo/pisces', '#/compat'], ['#/horo/leo', '#/horo']]) {
+      await page.goto(URL + '?direct=1' + h); await page.waitForFunction(() => window.__fh && window.__fh.started());
+      await page.goBack(); await hashIs(page, mid);
+      await page.goBack(); await hashIs(page, '#/');
+      await page.goto(URL + '?direct=2' + h); await page.waitForFunction(() => window.__fh && window.__fh.started());
+      await page.click('.btn-back'); await hashIs(page, mid);
+      await page.click('.btn-back'); await hashIs(page, '#/');
+    }
+    ok(true, '«Назад»: вход по прямой ссылке (#/compat/leo/pisces, #/horo/leo) — назад ведёт на выбор и главный, не из приложения');
+    ok(page.errs.length === 0, '«Назад»: нет ошибок в консоли', page.errs.slice(0, 3).join(' | ') + ' ' + (await at()));
+    await ctx.close();
+  }
+
   /* ---------- 6. «Поделиться» в ВК и ОК (вид окна, ?simulate=) ---------- */
   for (const kind of ['vk', 'ok']) {
     const { ctx, page } = await newPage(browser, VIEWPORTS[0], { time: NOON, query: '?simulate=' + kind, hash: '#/compat/leo/pisces' });
