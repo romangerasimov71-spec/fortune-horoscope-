@@ -165,7 +165,8 @@
    *   'rewarded'    — досмотрена (давать награду только здесь);
    *   'closed'      — закрыта раньше;  'failed' — ошибка площадки;
    *   'timeout'     — реклама не открылась за ads.rewardTimeoutMs;
-   *   'unsupported' — рекламы за награду здесь нет.
+   *   'unsupported' — рекламы за награду здесь нет;
+   *   'busy'        — уже идёт другой запрос (его ответ придёт в первый промис; второй ничего не показывает).
    * Если реклама открылась уже после 'timeout' и досмотрена — вызывается onLate()
    * (приложение само решает, положена ли ещё награда). Повторное «rewarded» за тот же показ
    * и «rewarded» без запроса ничего не дают. */
@@ -199,10 +200,13 @@
       if (req === r) req = null;
     }
   }
+  /* Идёт запрос рекламы за награду (ещё не открылась, не закрылась и не вышло время). */
+  P.rewardedBusy = function () { return !!(req && !req.done); };
   P.showRewarded = function (placement, opts) {
     opts = opts || {};
     return new Promise(function (resolve) {
       if (!P.rewardedSupported()) { resolve('unsupported'); return; }
+      if (P.rewardedBusy()) { resolve('busy'); return; }   // уже ждём рекламу — второй запрос не запускаем
       var r = { done: false, timedOut: false, opened: false, rewarded: false, onLate: opts.onLate, resolve: resolve };
       req = r;
       r.timer = setTimeout(function () {

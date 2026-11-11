@@ -193,12 +193,36 @@
   }
 
   /* Вопрос о здоровье или жизни близких: шар не отвечает «да/нет», а поддерживает. */
-  var CARE_SKIP = ['здорово', 'здоровать', 'здоровал', 'здороваю', 'здоровает', 'кроват', 'кровл', 'кровн', 'кровель'];
+  var CARE_SKIP = ['здорово', 'здоровать', 'здоровал', 'здороваю', 'здоровает', 'кроват', 'кровл', 'кровн', 'кровель', 'больш'];
+  /* «рак» как болезнь: только слово рак/рака/раком/раке/раку, и не когда речь о знаке зодиака:
+   * «Рак» с большой буквы не в начале вопроса, через дефис («мужчина-Рак»), рядом слова про знак
+   * (мужчина, женщина, парень, девушка, знак, муж, гороскоп, подходит, совместимость) или другой знак. */
+  var CANCER_WORDS = ['рак', 'рака', 'раком', 'раке', 'раку'];
+  var SIGN_CONTEXT = ['мужчин', 'женщин', 'парен', 'парн', 'девушк', 'знак', 'муж', 'гороскоп', 'подход', 'совмест',
+    'овен', 'овн', 'телец', 'тельц', 'близнец', 'лев', 'льв', 'дев', 'весы', 'весам', 'скорпион', 'стрел', 'козерог', 'водоле', 'рыб'];
+  function isCancerIllness(q) {
+    var raw = q.replace(/ё/g, 'е').split(/[^А-Яа-яA-Za-z-]+/).filter(Boolean);
+    var hit = false, sign = false;
+    raw.forEach(function (tok, i) {
+      tok.split('-').forEach(function (part, j, all) {
+        var w = part.toLowerCase();
+        if (CANCER_WORDS.indexOf(w) < 0) return;
+        if (all.length > 1) { sign = true; return; }                       // «мужчина-Рак»
+        if (part.charAt(0) === 'Р' && (i > 0 || j > 0)) { sign = true; return; }   // «Подходит ли мне Рак?»
+        hit = true;
+      });
+    });
+    if (!hit || sign) return false;
+    var lower = q.toLowerCase().replace(/ё/g, 'е').split(/[^а-яa-z]+/);
+    return !lower.some(function (w) { return w && SIGN_CONTEXT.some(function (x) { return w.indexOf(x) === 0; }); });
+  }
   function isCareQuestion(q) {
     var words = q.toLowerCase().replace(/ё/g, 'е').split(/[^а-яa-z]+/);
     var roots = (C.careWords || []).map(function (w) { return w.replace(/ё/g, 'е'); });
+    if (isCancerIllness(q)) return true;
     return words.some(function (w) {
       if (!w) return false;
+      if ((C.careExact || []).indexOf(w) >= 0) return true;
       if (CARE_SKIP.some(function (x) { return w.indexOf(x) === 0; })) return false;
       return roots.some(function (r) { return w.indexOf(r) === 0; });
     });
@@ -628,7 +652,9 @@
     ['сегодня особенно удаётся', 'завтра особенно удастся'],
     ['Свет сегодня заметно поднимает настроение', 'Свет завтра заметно поднимет настроение'],
     ['сегодня она особенно нужна', 'завтра она будет особенно нужна'],
-    ['которые случились сегодня', 'которые случатся за день'],
+    ['Перед сном вспомните три хорошие вещи, которые случились сегодня', 'Завтра перед сном вспомните три хорошие вещи, которые случились за день'],
+    ['Лягте сегодня пораньше — утро будет добрым', 'Завтра вечером лягте пораньше — следующее утро будет добрым'],
+    ['На душе тихо и спокойно', 'На душе будет тихо и спокойно'],
     ['Отложите тревожные мысли до завтра', 'Отложите тревожные мысли на потом']
   ];
   function toTomorrow(t) {
@@ -687,6 +713,8 @@
   function askTomorrow() {
     var p = route(), id = p[1];
     if (adWaiting || p[0] !== 'horo' || signIndex(id) < 0) return;
+    // реклама уже запрошена (человек ушёл и вернулся, пока она грузится) — второй раз не просим, ждём ту же
+    if (P.rewardedBusy()) { adWait(true); return; }
     if (tomorrowOpened().indexOf(id) >= 0) { updateTomorrow(id); return; }
     var token = screenToken;
     A.event('reward_offered', { placement: 'tomorrow', sign: id });
@@ -700,6 +728,7 @@
         else A.event('reward_failed', { placement: 'tomorrow', reason: 'late_left' });
       }
     }).then(function (res) {
+      if (res === 'busy') return;
       adWait(false);
       if (res === 'rewarded' || res === 'closed') adShown();   // реклама была на экране
       if (res === 'rewarded') { grantTomorrow(id, false); return; }
