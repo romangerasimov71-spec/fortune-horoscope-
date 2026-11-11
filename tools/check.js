@@ -97,7 +97,7 @@ async function hashIs(page, h) {
         const x = f(a, b), y = f(b, a);
         if (!x || !y) { res.bad.push(a + '+' + b); return; }
         if (JSON.stringify(x) !== JSON.stringify(y)) res.asym.push(a + '+' + b);
-        if (!(x.n >= 50 && x.n <= 97)) res.bad.push(a + '+' + b + ' ' + x.n);
+        if (!(x.n >= 60 && x.n <= 97)) res.bad.push(a + '+' + b + ' ' + x.n);
         [x.t, x.intro, x.love, x.family, x.advice].forEach((t) => { if (!t || t.length < 5) res.bad.push(a + '+' + b + ' пусто'); });
         const all = [x.t, x.intro, x.love, x.family, x.advice].join(' ').toLowerCase();
         if (/несовмест|не подход|расстав|развод|разлук|болезн/.test(all)) res.words.push(a + '+' + b);
@@ -113,10 +113,19 @@ async function hashIs(page, h) {
       return res;
     });
     ok(r.pairs === 78, 'совместимость: 78 пар в content/compat.js', r.pairs);
-    ok(r.bad.length === 0, 'совместимость: у всех 144 сочетаний есть процент 50–97 и все тексты', r.bad.slice(0, 5).join(', '));
+    ok(r.bad.length === 0, 'совместимость: у всех 144 сочетаний есть процент 60–97 и все тексты', r.bad.slice(0, 5).join(', '));
     ok(r.asym.length === 0, 'совместимость: Лев+Рыбы = Рыбы+Лев (для всех пар)', r.asym.slice(0, 5).join(', '));
     ok(r.titles === 78, 'совместимость: 78 разных заголовков', r.titles);
     ok(r.latin.length === 0, 'совместимость: у знака с тремя знаками одной стихии тексты «любовь» и «семья» не повторяются', r.latin.slice(0, 5).join(', '));
+    const dist = await page.evaluate(() => { const v = Object.values(window.CONTENT.compat.pairs).map((p) => p.n); return { low: v.filter((n) => n < 70).length, s70: v.filter((n) => n >= 70 && n < 80).length, min: Math.min(...v) }; });
+    ok(dist.low <= 19 && dist.s70 >= 12 && dist.min >= 60, 'совместимость: «с потенциалом» (<70%) не больше четверти пар, есть пары в 70-х', JSON.stringify(dist));
+    // вопросы о здоровье
+    const care = await page.evaluate(() => {
+      const yes = ['Вылечусь ли я?', 'Выживет ли папа?', 'Доживу ли до 90?', 'Пройдёт ли давление?', 'Будет ли ремиссия?', 'Химия поможет?', 'Беременна ли я?', 'Поможет ли лекарство?', 'Сдать кровь?', 'Делать ли прививку?'];
+      const no = ['Купить ли кровать?', 'Мужчина-Рак меня любит?', 'Здорово ли ехать?', 'Менять ли кровлю?', 'Затевать ли ремонт?', 'Поздороваться с соседом?'];
+      return { miss: yes.filter((q) => !window.__fh.isCareQuestion(q)), extra: no.filter((q) => window.__fh.isCareQuestion(q)) };
+    });
+    ok(!care.miss.length && !care.extra.length, 'шар: вопросы о здоровье — мягкий ответ, «кровать», «Рак», «здорово» — обычный', JSON.stringify(care));
     ok(r.words.length === 0, 'совместимость: нет «несовместимы», «расставание», «развод», «болезнь»', r.words.slice(0, 5).join(', '));
     await ctx.close();
   }
@@ -239,24 +248,67 @@ async function hashIs(page, h) {
     const visit = async (hash) => {
       await page.click('[data-go="' + hash + '"]'); await hashIs(page, hash);
       if (hash === '#/card') { const d = await page.$('[data-action="draw"]'); if (d) { await d.click(); await page.waitForTimeout(1200); } }
-      await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(900);
+      await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(1500);
     };
     await visit('#/card');
     await page.click('[data-go="#/horo"]'); await hashIs(page, '#/horo');
     await page.click('[data-go="#/horo/leo"]'); await hashIs(page, '#/horo/leo');
     await page.click('.btn-back'); await hashIs(page, '#/horo');
-    await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(900);
+    await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(1500);
     ok(!(await shown()), 'межстраничная: в первые 3 минуты не показывается');
     await page.clock.setFixedTime(NOON + 181000);
     await page.click('[data-go="#/horo"]'); await hashIs(page, '#/horo');
-    await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(900);
+    await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(1500);
     ok(await shown(), 'межстраничная: через 3 минуты и после 2 результатов — при возврате на главный');
     await page.waitForFunction(() => /Закрыть$/.test((document.querySelector('.fakead button') || {}).textContent || ''), null, { timeout: 6000 });
     await page.click('.fakead button');
     await page.clock.setFixedTime(NOON + 240000);
     await visit('#/card'); await visit('#/horo');
     ok(!(await shown()), 'межстраничная: следующая — не раньше чем через 3 минуты');
+    // повторный заход на уже открытую карту и тот же знак — не новые результаты
+    await page.clock.setFixedTime(NOON + 600000);
+    await visit('#/card');
+    await page.click('[data-go="#/horo"]'); await hashIs(page, '#/horo');
+    await page.click('[data-go="#/horo/leo"]'); await hashIs(page, '#/horo/leo');
+    await page.click('.btn-back'); await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(1500);
+    ok(!(await shown()), 'межстраничная: повторные заходы на открытую карту и тот же знак не считаются');
     ok(page.errs.length === 0, 'межстраничная: нет ошибок в консоли', page.errs.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  {
+    // реклама за «завтра» сбрасывает отсчёт: двух реклам подряд нет
+    const { ctx, page } = await newPage(browser, VIEWPORTS[0], { time: NOON, query: '?fakeads=1' });
+    const shown = () => page.evaluate(() => !!document.querySelector('.fakead'));
+    await page.click('[data-go="#/card"]'); await page.click('[data-action="draw"]'); await page.waitForTimeout(1200);
+    await page.click('.btn-back'); await hashIs(page, '#/');
+    await page.clock.setFixedTime(NOON + 200000);
+    await page.click('[data-go="#/horo"]'); await page.click('[data-go="#/horo/leo"]'); await hashIs(page, '#/horo/leo');
+    await page.click('[data-action="tomorrow"]');
+    await page.waitForFunction(() => /Закрыть$/.test((document.querySelector('.fakead button') || {}).textContent || ''), null, { timeout: 9000 });
+    await page.click('.fakead button'); await page.waitForSelector('.tomorrow.is-open');
+    await page.click('.btn-back'); await page.click('.btn-back'); await hashIs(page, '#/'); await page.waitForTimeout(1300);
+    ok(!(await shown()), 'после рекламы за «завтра» межстраничная сразу не показывается');
+    // гонка: вернулся на главный и сразу нажал «Карта дня» — межстраничная пропускается
+    await page.evaluate(() => window.__fh.adsDebug({ gap: 0, results: 0 }));
+    await page.click('[data-go="#/yesno"]'); await hashIs(page, '#/yesno');
+    await page.click('.btn-back'); await hashIs(page, '#/');
+    await page.waitForTimeout(650);
+    await page.click('[data-go="#/card"]'); await hashIs(page, '#/card');
+    await page.waitForTimeout(1200);
+    ok(!(await shown()), 'межстраничная не открывается поверх следующего экрана (ушёл с главного — пропуск)');
+    // «назад» во время ожидания рекламы убирает «Загружаем рекламу…»
+    await page.goto(URL + '?fakeads=silent#/horo/virgo'); await page.waitForFunction(() => window.__fh && window.__fh.started());
+    await page.click('[data-action="tomorrow"]');
+    await page.waitForTimeout(400);
+    await page.goBack(); await page.waitForTimeout(400);
+    const w = await page.evaluate(() => ({ hidden: document.getElementById('adwait').hidden, inert: document.getElementById('app').hasAttribute('inert') }));
+    ok(w.hidden && !w.inert, 'системная «назад» во время ожидания рекламы убирает «Загружаем рекламу…»', JSON.stringify(w));
+    // быстрые нажатия на знаки после выбора пары — без ошибок
+    await page.goto(URL + '#/compat'); await page.waitForFunction(() => window.__fh && window.__fh.started());
+    await page.click('[data-pick="leo"]'); await page.click('[data-pick="pisces"]');
+    await page.evaluate(() => { document.querySelector('[data-pick="virgo"]').click(); document.querySelector('[data-slot="a"]').click(); });
+    await page.waitForTimeout(600);
+    ok(page.errs.length === 0, 'реклама подряд / гонка / «назад» / быстрые нажатия: нет ошибок в консоли', page.errs.slice(0, 3).join(' | '));
     await ctx.close();
   }
 
@@ -265,14 +317,15 @@ async function hashIs(page, h) {
     const { ctx, page } = await newPage(browser, VIEWPORTS[0], { time: NOON, query: '?simulate=' + kind, hash: '#/compat/leo/pisces' });
     await page.click('[data-action="share"]');
     if (kind === 'vk') await page.waitForSelector('.share-preview img', { timeout: 8000 });
-    else await page.waitForTimeout(1500);
+    else await page.waitForTimeout(800);
+    const okNote = kind === 'ok' ? await page.evaluate(() => !document.querySelector('.share-preview') && /текст со ссылкой/.test((document.querySelector('.share-note') || {}).textContent || '')) : true;
     const btns = await page.$$eval('.share-buttons button', (b) => b.map((x) => x.textContent));
     await page.waitForTimeout(300);
     await shot(page, 'telefon-9-podelitsya-' + kind);
     await page.click('.share-buttons button');
     await page.waitForSelector('.toast.show');
     const t = await page.textContent('.toast');
-    ok(kind === 'vk' ? btns[0] === 'В историю ВКонтакте' && btns.includes('Отправить ссылкой') : btns[0] === 'Опубликовать в ленте ОК',
+    ok(kind === 'vk' ? btns[0] === 'В историю ВКонтакте' && btns.includes('Отправить ссылкой') : btns[0] === 'Опубликовать в ленте ОК' && okNote,
       'поделиться в ' + kind.toUpperCase() + ': ' + btns.join(', '), t);
     await ctx.close();
   }

@@ -193,7 +193,7 @@
   }
 
   /* Вопрос о здоровье или жизни близких: шар не отвечает «да/нет», а поддерживает. */
-  var CARE_SKIP = ['здорово', 'здоровать', 'здоровал', 'здороваю', 'здоровает'];
+  var CARE_SKIP = ['здорово', 'здоровать', 'здоровал', 'здороваю', 'здоровает', 'кроват', 'кровл', 'кровн', 'кровель'];
   function isCareQuestion(q) {
     var words = q.toLowerCase().replace(/ё/g, 'е').split(/[^а-яa-z]+/);
     var roots = (C.careWords || []).map(function (w) { return w.replace(/ё/g, 'е'); });
@@ -227,15 +227,27 @@
     gap: (ADS.interstitialMinGapSec || 180) * 1000,
     minResults: ADS.interstitialMinResults === undefined ? 2 : ADS.interstitialMinResults
   };
-  function countResult() { interAds.results++; }
+  /* Считаем только новые результаты: впервые открытая сегодня карта, новый ответ шара,
+   * впервые открытый сегодня знак, новая пара. Повторный заход на открытое — не считается. */
+  var seenResults = {};
+  function countResult(key) {
+    if (key) { if (seenResults[key]) return; seenResults[key] = true; }
+    interAds.results++;
+  }
+  /* Любая показанная реклама (и за награду тоже) начинает отсчёт заново: двух реклам подряд не бывает. */
+  function adShown() { interAds.last = Date.now(); interAds.results = 0; }
+  /* Человек спокойно стоит на главном: не ушёл, не открыл окно, не ждёт рекламу. */
+  function homeIdle() {
+    return !route()[0] && lastScreen === 'home' && !S.isOpen() && !S.copyBoxOpen() && !adWaiting && !P.isPaused();
+  }
   function maybeInterstitial() {
-    if (route()[0]) return;                       // уже ушли с главного
+    if (!homeIdle()) return;
     if (interAds.results < interAds.minResults) return;
     if (Date.now() - interAds.last < interAds.gap) return;
-    if (!P.interstitialSupported() || S.isOpen() || adWaiting) return;
-    interAds.last = Date.now();
-    interAds.results = 0;
-    P.showInterstitial('home');
+    if (!P.interstitialSupported()) return;
+    adShown();
+    // stillOk проверяется ещё раз в момент показа (если площадка даёт такую возможность)
+    P.showInterstitial('home', { stillOk: homeIdle });
   }
 
   /* ---------- Мелочи разметки ---------- */
@@ -286,6 +298,7 @@
     renderedDay = dayKey(now());
     clearTimers();
     screenToken++;
+    if (adWaiting) adWait(false);          // системная «назад» во время ожидания рекламы
     S.hideToast();
     S.closeCopyBox();
     S.close();
@@ -373,6 +386,7 @@
     if (i === null) {
       i = drawCard();
       A.event('card_drawn', { card: C.tarot[i].n });
+      countResult('card:' + dayKey(now()));
     }
     showCard(i, true, false);
   }
@@ -390,7 +404,6 @@
     if (!animate) btn.classList.add('no-anim');
     btn.classList.add('flipped');
     app.classList.add('revealed');
-    countResult();
 
     var info = document.getElementById('card-info');
     var html =
@@ -579,7 +592,7 @@
       '</div>' +
       '<div id="tomorrow-box">' + tomorrowHtml(idx) + '</div>' +
       '<button type="button" class="btn btn-outline btn-wide" data-action="back">Другие знаки</button>';
-    countResult();
+    countResult('sign:' + dayKey(d) + ':' + s.id);
     var advice = h.parts[h.parts.length - 1].text;
     current.share = function () {
       openShare({
@@ -592,10 +605,35 @@
   }
   /* Тексты гороскопа написаны «на сегодня»; в блоке «на завтра» те же фразы говорят «завтра».
    * Смысл тот же, что завтра покажет «сегодня», меняются только эти слова. */
+  /* Сначала — точные замены фраз в настоящем времени на будущее, потом общее «сегодня» → «завтра».
+   * Если в content/horoscope.js появится новая фраза с «сегодня» — проверить её здесь (tools/check.js
+   * показывает все завтрашние фразы с «завтра»). */
+  var TOMORROW_FIX = [
+    ['сегодня легко даётся то, над чем вчера приходилось', 'завтра легко дастся то, над чем раньше приходилось'],
+    ['День ровный, без неожиданностей', 'День будет ровным, без неожиданностей'],
+    ['что вы сегодня особенно приветливы', 'что вы завтра будете особенно приветливы'],
+    ['Настроение светлое, и его хватит надолго', 'Настроение будет светлым, и его хватит надолго'],
+    ['В доме царит лад', 'В доме будет царить лад'],
+    ['сегодня удаётся на славу', 'завтра удастся на славу'],
+    ['Сегодня приятно думать о будущем', 'Завтра будет приятно думать о будущем'],
+    ['Мир сегодня щедр', 'Мир завтра будет щедр'],
+    ['Сегодня вы в центре внимания', 'Завтра вы будете в центре внимания'],
+    ['сегодня легче, чем обычно, найти', 'завтра будет легче, чем обычно, найти'],
+    ['Сегодня вам везёт на хороших людей', 'Завтра вам повезёт на хороших людей'],
+    ['сегодня спокойно и уверенно на душе', 'завтра будет спокойно и уверенно на душе'],
+    ['сегодня его легко растопить', 'завтра его будет легко растопить'],
+    ['сегодня сближает', 'завтра сблизит'],
+    ['Ваш опыт сегодня особенно в цене', 'Ваш опыт завтра будет особенно в цене'],
+    ['Ваш опыт сейчас для него на вес золота', 'Ваш опыт завтра будет для него на вес золота'],
+    ['сегодня особенно удаётся', 'завтра особенно удастся'],
+    ['Свет сегодня заметно поднимает настроение', 'Свет завтра заметно поднимет настроение'],
+    ['сегодня она особенно нужна', 'завтра она будет особенно нужна'],
+    ['которые случились сегодня', 'которые случатся за день'],
+    ['Отложите тревожные мысли до завтра', 'Отложите тревожные мысли на потом']
+  ];
   function toTomorrow(t) {
-    return t.replace(/случились сегодня/g, 'случились за день')
-      .replace(/Сегодня/g, 'Завтра').replace(/сегодня/g, 'завтра')
-      .replace(/вчера/g, 'раньше');
+    TOMORROW_FIX.forEach(function (f) { t = t.split(f[0]).join(f[1]); });
+    return t.replace(/Сегодня/g, 'Завтра').replace(/сегодня/g, 'завтра').replace(/вчера/g, 'раньше');
   }
   /* Блок «Гороскоп на завтра»: открыт — текст; нет — кнопка за рекламу (если реклама есть). */
   function tomorrowHtml(idx) {
@@ -643,7 +681,8 @@
         if (r.top > window.innerHeight * 0.7 || r.top < 0) window.scrollTo({ top: window.pageYOffset + r.top - 16, behavior: reducedMotion() ? 'auto' : 'smooth' });
       }
     }
-    S.toast('Гороскоп на завтра открыт');
+    var sg = C.zodiac[signIndex(id)];
+    S.toast('Гороскоп на завтра для ' + sg.gen + ' открыт');
   }
   function askTomorrow() {
     var p = route(), id = p[1];
@@ -656,11 +695,13 @@
       // реклама открылась уже после того, как мы перестали ждать, и досмотрена:
       // даём награду, только если человек всё ещё на этом же экране
       onLate: function () {
+        adShown();
         if (token === screenToken) grantTomorrow(id, true);
         else A.event('reward_failed', { placement: 'tomorrow', reason: 'late_left' });
       }
     }).then(function (res) {
       adWait(false);
+      if (res === 'rewarded' || res === 'closed') adShown();   // реклама была на экране
       if (res === 'rewarded') { grantTomorrow(id, false); return; }
       A.event('reward_failed', { placement: 'tomorrow', reason: res });
       if (res === 'closed') S.toast('Гороскоп на завтра откроется, если досмотреть рекламу до конца.');
@@ -724,10 +765,18 @@
     });
   }
   function onPick(id) {
+    if (!pick) return;                    // пара уже выбрана, идёт переход к итогу
     pick[pick.active] = id;
     if (pick.active === 'a' && !pick.b) pick.active = 'b';
     else if (pick.active === 'b' && !pick.a) pick.active = 'a';
     drawPick();
+    if (!(pick.a && pick.b)) {
+      // сетку могли прокрутить: подвинуть к ячейкам, чтобы подсказка «Теперь нажмите…» была видна
+      var slots = document.getElementById('pair-slots'), hint = document.getElementById('pick-hint');
+      if (slots && hint && hint.getBoundingClientRect().top < 8) {
+        window.scrollTo({ top: Math.max(0, window.pageYOffset + slots.getBoundingClientRect().top - 12), behavior: reducedMotion() ? 'auto' : 'smooth' });
+      }
+    }
     if (pick.a && pick.b) {
       var a = pick.a, b = pick.b;
       store.set('compat', { a: a, b: b });
@@ -767,7 +816,7 @@
       '<div class="actions">' + shareBtn() +
       '<button type="button" class="btn btn-outline" data-action="new-pair">Другая пара</button></div>' +
       '<p class="footnote">Для развлечения</p>';
-    countResult();
+    countResult('compat:' + res.key);
     A.event('compat_shown', { pair: res.key, pct: res.n });
     current.share = function () {
       openShare({
@@ -788,7 +837,7 @@
     var pk = t.getAttribute('data-pick');
     if (pk) { onPick(pk); return; }
     var sl = t.getAttribute('data-slot');
-    if (sl) { pick.active = sl; drawPick(); return; }
+    if (sl) { if (pick) { pick.active = sl; drawPick(); } return; }
     var a = t.getAttribute('data-action');
     if (a === 'back') back();
     else if (a === 'share' && current.share) current.share();
@@ -828,6 +877,8 @@
   function start() {
     if (started) return;
     started = true;
+    var splash = document.getElementById('splash');
+    if (splash) splash.parentNode.removeChild(splash);
     applyPayload();
     if (!history.state) history.replaceState({ depth: 0 }, '', location.hash || '#/');
     render(false);

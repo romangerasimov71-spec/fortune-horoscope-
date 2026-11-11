@@ -20,7 +20,7 @@
    `pagesUrl`, потом `vkAppId` / `okAppId`, частота рекламы (`ads`), баннер.
 2. **`playgama-bridge-config.json`** — ссылки в `social`, `placements` рекламы (их имена = то, что
    приложение передаёт в `showRewarded('…')` / `showInterstitial('…')`).
-3. **`index.html`** — порядок скриптов: Bridge **первым в `<head>`**, потом внизу
+3. **`index.html`** — заставка в HTML (см. `#splash`), сразу за ней Bridge **первым скриптом**, потом внизу
    `config.js`, `platform.js`, `analytics.js`, `share.js`, затем своё (тексты, графика, открытки, приложение).
    Элемент ожидания рекламы `#adwait` (см. index.html) — если есть реклама за награду.
 4. **`style.css`** — скопировать блоки «Плашка и окно копирования», «Окно Поделиться (share.js)»,
@@ -38,6 +38,7 @@ Platform.init()
   .then(() => Platform.storage.load(['sign', 'history']))   // все ключи — одним вызовом
   .then(start, start);                                      // start() всё равно, даже если площадка молчит
 function start() {
+  document.getElementById('splash').remove();               // убрать заставку из index.html
   render();
   Platform.ready();                                         // площадка убирает заставку
   Analytics.event('app_open', { platform: Platform.id, bridge: Platform.hasBridge });
@@ -93,8 +94,8 @@ font: 'serif'|'sans', weight, italic, color, maxWidth, maxLines, spacing, shadow
 
 ## Что важно не сломать
 
-- Bridge — первым скриптом, без `async` (требование Bridge и модерации).
+- Bridge — первым скриптом страницы, без `async`/`defer` (требование Bridge и модерации); заставку — в HTML перед ним.
 - Награда — только по ответу `'rewarded'`; «rewarded» без запроса или второй раз — ничего не даёт (уже в `platform.js`).
-- Приложение обязано полностью работать без Bridge (GitHub Pages, файл не загрузился, площадка молчит 6 с).
+- Приложение обязано полностью работать без Bridge (GitHub Pages, файл не загрузился, площадка молчит 3,5 с).
 - Ключи площадки: только буквы, цифры, `_` и `-` (ВК) — поэтому `fh_card`, а в localStorage `fh.card`.
 - В статистику — никаких текстов, которые пишет человек.

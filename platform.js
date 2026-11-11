@@ -54,7 +54,7 @@
       var b = useBridge ? window.bridge : null;
       if (!b || typeof b.initialize !== 'function') { resolve(P); return; }
       var settled = false;
-      var timer = setTimeout(function () { if (!settled) { settled = true; resolve(P); } }, CFG.bridgeInitTimeoutMs || 6000);
+      var timer = setTimeout(function () { if (!settled) { settled = true; resolve(P); } }, CFG.bridgeInitTimeoutMs || 3500);
       var r;
       try { r = b.initialize(); } catch (e) { r = Promise.reject(e); }
       Promise.resolve(r).then(function () {
@@ -219,7 +219,9 @@
   };
 
   /* ---------- Межстраничная реклама ----------
-   * showInterstitial(placement) → Promise: 'closed' | 'failed' | 'timeout' | 'unsupported' | 'busy'.
+   * showInterstitial(placement, { stillOk }) → Promise: 'closed' | 'failed' | 'timeout' | 'unsupported' | 'busy' | 'skipped'.
+   * stillOk() — «показывать ещё можно» (человек всё на том же экране): проверяется перед вызовом площадки
+   * и ещё раз в момент открытия пробной рекламы. Отменить уже запрошенную рекламу Bridge 2.4.1 не умеет.
    * Частоту решает приложение (config.js) и сам Bridge (minimumDelayBetweenInterstitial). */
   var ireq = null;
   P.interstitialSupported = function () {
@@ -233,16 +235,18 @@
       if (ireq) { var f = ireq; ireq = null; clearTimeout(f.timer); f.resolve(state); }
     }
   }
-  P.showInterstitial = function (placement) {
+  P.showInterstitial = function (placement, opts) {
+    var stillOk = opts && typeof opts.stillOk === 'function' ? opts.stillOk : function () { return true; };
     return new Promise(function (resolve) {
       if (!P.interstitialSupported()) { resolve('unsupported'); return; }
       if (ireq) { resolve('busy'); return; }
+      if (!stillOk()) { resolve('skipped'); return; }
       var f = ireq = { resolve: resolve };
       f.timer = setTimeout(function () {
         if (ireq === f && !adOpen.interstitial) { ireq = null; resolve('timeout'); }
       }, 8000);
       try {
-        if (fakeActive) fakeInterstitial();
+        if (fakeActive) fakeInterstitial(stillOk);
         else B.advertisement.showInterstitial(placement);
       } catch (e) {
         if (ireq === f) { ireq = null; clearTimeout(f.timer); resolve('failed'); }
@@ -378,13 +382,17 @@
         function () { onRewardedState('closed'); });
     }, 300);
   }
-  function fakeInterstitial() {
+  function fakeInterstitial(stillOk) {
     if (fakeMode === 'silent') return;
     if (fakeMode === 'fail') { setTimeout(function () { onInterstitialState('failed'); }, 400); return; }
     setTimeout(function () {
+      if (!stillOk()) {                       // человек уже ушёл с экрана — этот раз пропускаем
+        if (ireq) { var f = ireq; ireq = null; clearTimeout(f.timer); f.resolve('skipped'); }
+        return;
+      }
       onInterstitialState('opened');
       fakeOverlay('Межстраничная реклама (бывает не чаще раза в 3 минуты).', 3, false, noop,
         function () { onInterstitialState('closed'); });
-    }, 200);
+    }, 600);
   }
 })();

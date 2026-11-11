@@ -50,8 +50,10 @@
         pc.text(roman(card.n), { y: cy + 40, size: 54, weight: 'bold', color: '#6a3f0e' });
         pc.text(card.name, { y: cy + ch - 104, size: 46, minSize: 26, weight: 'bold', color: '#3a2470', maxWidth: cw - 70, maxLines: 1 });
         return pc.svg(ART.tarot(card.n), cx + 50, cy + 120, cw - 100, cw - 100, '#3a2470').then(function () {
-          var y = pc.text(card.name, { y: cy + ch + 46, size: 84, minSize: 56, weight: 'bold', color: pc.colors.gold, maxLines: 1, maxWidth: 900, shadow: 'rgba(243,207,115,.4)' });
-          pc.text('«' + card.motto + '»', { y: y + 16, size: 50, minSize: 40, italic: true, color: pc.colors.text, maxLines: 2, maxWidth: 880 });
+          var y = pc.text(card.name, { y: cy + ch + (card.oldName ? 34 : 46), size: 84, minSize: 56, weight: 'bold', color: pc.colors.gold, maxLines: 1, maxWidth: 900, shadow: 'rgba(243,207,115,.4)' });
+          // смягчённые названия: классическое имя мелко, как в приложении
+          if (card.oldName) y = pc.text('в старых колодах — «' + card.oldName + '»', { y: y + 2, size: 32, font: 'sans', italic: true, color: pc.colors.text2, maxLines: 1 });
+          pc.text('«' + card.motto + '»', { y: y + (card.oldName ? 12 : 16), size: 50, minSize: 40, italic: true, color: pc.colors.text, maxLines: 2, maxWidth: 880 });
           pc.footer(date);
         });
       };
@@ -65,7 +67,12 @@
           var y = pc.text(sign.name, { y: 572, size: 104, minSize: 70, weight: 'bold', color: pc.colors.gold, maxLines: 1, shadow: 'rgba(243,207,115,.4)' });
           y = pc.text(sign.from + ' – ' + sign.to, { y: y + 4, size: 38, font: 'sans', color: pc.colors.text2 });
           y = pc.text('СОВЕТ ДНЯ', { y: y + 46, size: 34, font: 'sans', weight: 'bold', color: pc.colors.gold, spacing: 4 });
-          pc.text(advice, { y: y + 18, size: 52, minSize: 38, color: pc.colors.text, maxLines: 4, maxWidth: 860 });
+          // совет — по центру свободного места до подписи; короткий — крупнее
+          var opt = { y: 0, size: advice.length < 70 ? 64 : 56, minSize: 38, color: pc.colors.text, maxLines: 4, maxWidth: 860, dry: true };
+          var top = y + 18, room = pc.H - 220 - top, h = pc.text(advice, opt);
+          opt.dry = false;
+          opt.y = top + Math.max(0, (room - h) / 2);
+          pc.text(advice, opt);
           pc.footer('Гороскоп на каждый день');
         });
       };

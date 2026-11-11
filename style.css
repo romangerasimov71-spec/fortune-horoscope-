@@ -411,6 +411,7 @@ body.paused *, body.paused *::before, body.paused *::after { animation-play-stat
 .share-wait { color: var(--text-2); margin: 0; }
 .share-buttons { display: grid; gap: 10px; }
 .share-buttons .btn { width: 100%; }
+.share-note { font-size: 1rem; color: var(--text-2); text-align: center; margin: 10px 0 0; }
 .btn:disabled { opacity: .55; cursor: wait; }
 .btn-ghost { width: 100%; margin-top: 12px; color: var(--text); background: transparent; border-color: rgba(255, 248, 232, .45); }
 .btn-ghost:hover { border-color: var(--text); }

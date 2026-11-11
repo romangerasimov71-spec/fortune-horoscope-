@@ -171,14 +171,18 @@
       ctx.globalAlpha = 1;
     };
     /* Текст с переносом. opt: x, y (верх первой строки), size, minSize, font ('serif'|'sans'), weight,
-     * italic, color, align ('center'|'left'), maxWidth, lineHeight (×size), maxLines, spacing (px). */
+     * italic, color, align ('center'|'left'), maxWidth, lineHeight (×size), maxLines, spacing (px),
+     * dry (true — только посчитать высоту, не рисовать). Возвращает низ текста.
+     * Короткие слова (в, с, и, на…) не остаются в конце строки, строка не начинается с тире. */
     pc.text = function (str, opt) {
       opt = opt || {};
+      str = String(str).replace(/ — /g, '\u00a0— ');
+      for (var k = 0; k < 2; k++) str = str.replace(/(^|[\s\u00a0(«])([а-яёА-ЯЁa-zA-Z]{1,2}) /g, '$1$2\u00a0');
       var size = opt.size || 48, minSize = opt.minSize || size, maxW = opt.maxWidth || (W - 200);
       var lines, family = opt.font === 'sans' ? SANS : SERIF;
       function setFont(sz) { ctx.font = (opt.italic ? 'italic ' : '') + (opt.weight || 'normal') + ' ' + sz + 'px ' + family; }
       function wrap() {
-        var words = String(str).split(/\s+/), out = [], cur = '';
+        var words = str.split(/[ \t\n]+/), out = [], cur = '';
         words.forEach(function (w) {
           var t = cur ? cur + ' ' + w : w;
           if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t;
@@ -199,6 +203,7 @@
         lines[lines.length - 1] = lines[lines.length - 1].replace(/[\s,.;:—-]*$/, '') + '…';
       }
       var lh = size * (opt.lineHeight || 1.25), x = opt.x === undefined ? W / 2 : opt.x, y = opt.y || 0;
+      if (opt.dry) return y + lines.length * lh;
       ctx.fillStyle = opt.color || COLORS.text;
       ctx.textAlign = opt.align || 'center';
       ctx.textBaseline = 'top';
@@ -212,11 +217,11 @@
     pc.svg = function (svg, x, y, w, h, color) {
       return svgImage(svg, w, h, color).then(function (img) { ctx.drawImage(img, x, y, w, h); });
     };
-    /* Подпись внизу: название приложения (и дата). */
+    /* Подпись внизу: название приложения и где его найти (config.js: findHint), ниже — sub (дата и т.п.). */
     pc.footer = function (sub) {
       ctx.strokeStyle = 'rgba(243,207,115,.5)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(W / 2 - 160, H - 190); ctx.lineTo(W / 2 + 160, H - 190); ctx.stroke();
-      pc.text(CFG.name || '', { y: H - 165, size: 44, weight: 'bold', color: COLORS.gold });
+      pc.text((CFG.name || '') + (CFG.findHint ? ' · ' + CFG.findHint : ''), { y: H - 165, size: 42, minSize: 30, weight: 'bold', color: COLORS.gold, maxLines: 1, maxWidth: 900 });
       if (sub) pc.text(sub, { y: H - 110, size: 32, font: 'sans', color: COLORS.text2 });
     };
     return pc;
@@ -281,7 +286,8 @@
       document.body.appendChild(sheet);
     }
     var btns = [];
-    var img = !!o.draw;
+    // в ленту ОК картинку Bridge не отправляет — открытку там не показываем, чтобы не обещать её
+    var img = !!o.draw && kind !== 'ok';
     if (kind === 'vk') {
       if (img) btns.push(['vk_story', 'В историю ВКонтакте', true, 'gold']);
       btns.push(['vk_link', 'Отправить ссылкой', false, img ? 'outline' : 'gold']);
@@ -301,6 +307,7 @@
       '<div class="share-buttons">' + btns.map(function (b) {
         return '<button type="button" class="btn btn-' + b[3] + '" data-how="' + b[0] + '"' + (b[2] ? ' disabled data-needs-image="1"' : '') + '>' + b[1] + '</button>';
       }).join('') + '</div>' +
+      (kind === 'ok' ? '<p class="share-note">В ленту уйдёт текст со ссылкой на приложение.</p>' : '') +
       '<button type="button" class="btn btn-ghost share-close" data-how="close">Закрыть</button>' +
       '</div>';
     sheet.hidden = false;

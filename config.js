@@ -3,6 +3,8 @@
  */
 window.APP_CONFIG = {
   name: 'Гадания и гороскоп',
+  /* Строка на открытке: где найти приложение. */
+  findHint: 'ищите в ВК и ОК',
 
   /* Приставка ключей сохранения: у каждого мини-приложения своя (fh — fortune-horoscope). */
   storagePrefix: 'fh',
@@ -15,7 +17,7 @@ window.APP_CONFIG = {
   pagesUrl: 'https://romangerasimov71-spec.github.io/fortune-horoscope-/',
 
   /* Сколько ждать, пока площадка ответит на вызов Bridge (мс). Дольше — работаем без площадки. */
-  bridgeInitTimeoutMs: 6000,
+  bridgeInitTimeoutMs: 3500,
 
   ads: {
     /* Реклама за награду: если за столько мс реклама так и не открылась — «не загрузилась». */
