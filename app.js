@@ -390,7 +390,9 @@
       tile('#/horo', ART.iconHoro(), 'Гороскоп на сегодня', my !== null ? 'Ваш знак: ' + C.zodiac[my].name : 'Для всех 12 знаков') +
       tile('#/compat', ART.iconCompat(), 'Совместимость', 'Любовь, дружба и семья по знакам') +
       '</nav>' +
-      '<p class="footnote">Для развлечения</p>';
+      '<p class="footnote">Для развлечения</p>' +
+      // канал поддержки (требование ВК): config.js SUPPORT, обычным текстом; пусто — строки нет
+      (CFG.SUPPORT ? '<p class="footnote support-note">Поддержка и новинки: ' + esc(CFG.SUPPORT) + '</p>' : '');
   }
   function tile(hash, icon, title, sub) {
     return '<button type="button" class="tile" data-go="' + hash + '">' +

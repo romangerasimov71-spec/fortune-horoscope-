@@ -37,12 +37,32 @@
   var simulate = param('simulate');         // null | 'vk' | 'ok'
   if (simulate !== 'vk' && simulate !== 'ok') simulate = null;
 
+  /* Где запущены — по параметрам запуска в адресе (не по Bridge: Bridge 2.4.1 в ОК работает через
+   * VK Bridge и называет площадку 'vk'). ОК: vk_client=ok, vk_platform=*_ok, свои параметры ОК
+   * (logged_user_id / application_key + api_server …) или переход с ok.ru. ВК: параметры vk_*. */
+  function launchPlatform() {
+    var q = '';
+    try { q = location.search || ''; } catch (e) { q = ''; }
+    var has = function (name) { return new RegExp('[?&]' + name + '=').test(q); };
+    var ref = '';
+    try { ref = String(document.referrer || ''); } catch (e) { ref = ''; }
+    var isOk = /[?&]vk_client=ok(&|$)/.test(q) || /[?&]vk_platform=[a-z_]+_ok(&|$)/.test(q) ||
+      ((has('logged_user_id') || has('application_key')) &&
+       (has('api_server') || has('apiconnection') || has('session_key') || has('auth_sig') || has('web_server'))) ||
+      /^https?:\/\/([a-z0-9-]+\.)*(ok\.ru|odnoklassniki\.ru)(\/|$)/i.test(ref);
+    if (isOk) return 'ok';
+    if (/[?&]vk_(app_id|platform|user_id|language)=/.test(q)) return 'vk';
+    return '';
+  }
+
   var B = null;                             // window.bridge, когда он успешно запущен
   var P = {
     id: 'web',                              // 'web' (без Bridge), 'mock' (Bridge вне площадки), 'vk', 'ok', 'playgama'…
     hasBridge: false,
     language: 'ru',
-    payload: null                           // данные запуска (в ВК — то, что после # в ссылке vk.com/app…#…)
+    payload: null,                          // данные запуска (в ВК — то, что после # в ссылке vk.com/app…#…)
+    launch: launchPlatform(),               // 'ok' / 'vk' по параметрам запуска (или '') — даже без Bridge
+    bridgeId: ''                            // как площадку назвал сам Bridge
   };
   window.Platform = P;
 
@@ -54,7 +74,14 @@
       var b = useBridge ? window.bridge : null;
       if (!b || typeof b.initialize !== 'function') { resolve(P); return; }
       var settled = false;
-      var timer = setTimeout(function () { if (!settled) { settled = true; resolve(P); } }, CFG.bridgeInitTimeoutMs || 3500);
+      // Bridge не ответил вовремя (во ВК/ОК — не загрузился VK Bridge с unpkg.com): работаем без него
+      // и убираем его заставку, иначе она закрывает приложение и не пускает нажатия.
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        try { var ov = document.getElementById('loading-overlay'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); } catch (e) { /* нет заставки */ }
+        resolve(P);
+      }, CFG.bridgeInitTimeoutMs || 3500);
       var r;
       try { r = b.initialize(); } catch (e) { r = Promise.reject(e); }
       Promise.resolve(r).then(function () {
@@ -75,6 +102,8 @@
     B = b;
     P.hasBridge = true;
     try { P.id = b.platform.id || 'mock'; } catch (e) { P.id = 'mock'; }
+    P.bridgeId = P.id;
+    if (P.launch === 'ok' && P.id === 'vk') P.id = 'ok';     // ОК через VK Bridge
     try { P.language = b.platform.language || 'ru'; } catch (e) { /* по умолчанию ru */ }
     try { P.payload = b.platform.payload || null; } catch (e) { P.payload = null; }
     var EV = b.EVENT_NAME || {};
@@ -276,14 +305,27 @@
     if (simulate) return simulate;
     if (P.id === 'vk') return 'vk';
     if (P.id === 'ok') return 'ok';
+    if (P.launch) return P.launch;          // в ВК/ОК, но Bridge не поднялся
     return 'web';
   };
+  /* ОК, где Bridge работает через VK Bridge: делимся окном ОК «Поделиться» (VKWebAppShare). */
+  function okViaVkBridge() { return P.id === 'ok' && P.bridgeId === 'vk'; }
+  /* Есть ли чем делиться на площадке (Bridge не поднялся — кнопки площадки не показываем). */
+  P.platformShareAvailable = function () {
+    if (simulate) return true;
+    if (P.id === 'vk') return !!(vkSdk() || (B && B.social && B.social.isShareSupported));
+    if (okViaVkBridge()) return !!(vkSdk() || (B && B.social && B.social.isShareSupported));
+    if (P.id === 'ok') { try { return !!(B && B.social && B.social.isCreatePostSupported); } catch (e) { return false; } }
+    return false;
+  };
+  P.okShareLabel = function () { return okViaVkBridge() ? 'Поделиться в ОК' : 'Опубликовать в ленте ОК'; };
   /* Ссылка на приложение для друга. hash — экран, например '#/horo/leo'. */
   P.link = function (hash) {
     var h = String(hash || '').replace(/^#\/?/, '');
     var kind = P.shareKind();
     if (kind === 'vk' && CFG.vkAppId) return 'https://vk.com/app' + CFG.vkAppId + (h ? '#' + h : '');
-    if (kind === 'ok' && CFG.okAppId) return 'https://ok.ru/game/' + CFG.okAppId;
+    // В ОК — только ссылка ОК; пока okAppId пуст — без ссылки (никаких vk.com и github.io в ОК).
+    if (kind === 'ok') return CFG.okAppId ? 'https://ok.ru/game/' + CFG.okAppId : '';
     var here = location.href.split('#')[0].split('?')[0];
     var base = (/^https?:$/.test(location.protocol) && !P.onPlatform()) ? here : (CFG.pagesUrl || here);
     return base + (h ? '#/' + h : '');
@@ -316,9 +358,18 @@
     if (!sdk) return Promise.reject(new Error('no_vk'));
     return sdk.send('VKWebAppShare', { link: link });
   };
-  /* Запись в ленте Одноклассников: текст + ссылка. */
+  /* Запись в ленте Одноклассников: текст + ссылка. В ОК через VK Bridge — окно ОК «Поделиться»
+   * (VKWebAppShare: со ссылкой ok.ru/game/…, а без неё — делится самим приложением). */
   P.okPost = function (text, link) {
     if (simulate) return simulated('запись в ОК: ' + text + ' ' + link);
+    if (okViaVkBridge()) {
+      try {
+        if (B.social && B.social.isShareSupported) return Promise.resolve(B.social.share(link ? { url: link } : {}));
+      } catch (e) { /* ниже — родной VK Bridge */ }
+      var sdk = vkSdk();
+      if (sdk) return sdk.send('VKWebAppShare', link ? { link: link } : {});
+      return Promise.reject(new Error('no_ok'));
+    }
     try {
       if (B && B.social && B.social.isCreatePostSupported) return Promise.resolve(B.social.createPost({ text: text, url: link }));
     } catch (e) { /* ниже — отказ */ }

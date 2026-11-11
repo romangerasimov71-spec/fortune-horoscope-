@@ -274,7 +274,7 @@
     var P = window.Platform || {};
     var kind = P.shareKind ? P.shareKind() : 'web';
     var link = P.link ? P.link(o.hash) : location.href.split('#')[0] + (o.hash || '');
-    var fullText = o.text + '\n' + link;
+    var fullText = link ? o.text + '\n' + link : o.text;
     var job = current = { canvas: null, dataUrl: null };
     opener = document.activeElement;
 
@@ -288,17 +288,23 @@
     var btns = [];
     // в ленту ОК картинку Bridge не отправляет — открытку там не показываем, чтобы не обещать её
     var img = !!o.draw && kind !== 'ok';
+    // площадка есть, но Bridge не поднялся — только «Скопировать текст» (без кнопок, которые не сработают)
+    var can = !P.platformShareAvailable || P.platformShareAvailable();
+    if (kind === 'vk' || kind === 'ok') img = img && can;
     if (kind === 'vk') {
-      if (img) btns.push(['vk_story', 'В историю ВКонтакте', true, 'gold']);
-      btns.push(['vk_link', 'Отправить ссылкой', false, img ? 'outline' : 'gold']);
+      if (!can) { /* только копирование */ }
+      else {
+        if (img && (!P.vkStoryAvailable || P.vkStoryAvailable())) btns.push(['vk_story', 'В историю ВКонтакте', true, 'gold']);
+        btns.push(['vk_link', 'Отправить ссылкой', false, btns.length ? 'outline' : 'gold']);
+      }
     } else if (kind === 'ok') {
-      btns.push(['ok_post', 'Опубликовать в ленте ОК', false, 'gold']);
+      if (can) btns.push(['ok_post', P.okShareLabel ? P.okShareLabel() : 'Опубликовать в ленте ОК', false, 'gold']);
     } else {
       if (img && canShareFiles()) btns.push(['image', 'Отправить открытку', true, 'gold']);
       if (img) btns.push(['save', 'Сохранить картинку', true, btns.length ? 'outline' : 'gold']);
       if (navigator.share) btns.push(['link', 'Отправить ссылкой', false, 'outline']);
     }
-    btns.push(['copy', 'Скопировать текст', false, 'outline']);
+    btns.push(['copy', 'Скопировать текст', false, btns.length ? 'outline' : 'gold']);
 
     sheet.innerHTML =
       '<div class="share-inner" role="dialog" aria-modal="true" aria-labelledby="share-title">' +
@@ -307,7 +313,7 @@
       '<div class="share-buttons">' + btns.map(function (b) {
         return '<button type="button" class="btn btn-' + b[3] + '" data-how="' + b[0] + '"' + (b[2] ? ' disabled data-needs-image="1"' : '') + '>' + b[1] + '</button>';
       }).join('') + '</div>' +
-      (kind === 'ok' ? '<p class="share-note">В ленту уйдёт текст со ссылкой на приложение.</p>' : '') +
+      (kind === 'ok' && can && !(P.okShareLabel && P.okShareLabel() === 'Поделиться в ОК') ? '<p class="share-note">В ленту уйдёт текст со ссылкой на приложение.</p>' : '') +
       '<button type="button" class="btn btn-ghost share-close" data-how="close">Закрыть</button>' +
       '</div>';
     sheet.hidden = false;

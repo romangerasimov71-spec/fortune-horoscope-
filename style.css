@@ -153,6 +153,7 @@ button { font: inherit; color: inherit; }
 .tile-arrow { flex: none; font-size: 2.2rem; line-height: 1; color: var(--gold); }
 
 .footnote { text-align: center; margin: 26px 0 4px; font-size: 16px; color: var(--text-2); letter-spacing: .02em; }
+.footnote.support-note { margin-top: 6px; overflow-wrap: anywhere; }
 
 /* ---------- Карта дня ---------- */
 .card-layout { display: flex; flex-direction: column; align-items: center; }
