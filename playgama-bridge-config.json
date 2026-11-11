@@ -1,0 +1,28 @@
+{
+    "advertisement": {
+        "minimumDelayBetweenInterstitial": 180,
+        "interstitial": {
+            "placementFallback": "home",
+            "placements": [{ "id": "home" }]
+        },
+        "rewarded": {
+            "placementFallback": "tomorrow",
+            "placements": [{ "id": "tomorrow" }]
+        },
+        "banner": {
+            "disable": true
+        }
+    },
+    "social": {
+        "shares": [
+            { "id": "app", "url": "https://romangerasimov71-spec.github.io/fortune-horoscope-/" }
+        ],
+        "posts": [
+            {
+                "id": "app",
+                "text": "Карта дня, гороскоп и совместимость знаков — загляните!",
+                "url": "https://romangerasimov71-spec.github.io/fortune-horoscope-/"
+            }
+        ]
+    }
+}

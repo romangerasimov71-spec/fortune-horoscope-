@@ -233,6 +233,15 @@
         '<circle cx="32" cy="32" r="24"/><circle cx="32" cy="32" r="14"/>' + rays(32, 32, 14, 24, 12) +
         dot(32, 32, 4) + '</svg>';
     },
+    iconCompat: function () {
+      return '<svg viewBox="0 0 64 64" aria-hidden="true" ' + S + ' stroke-width="2.6">' +
+        '<circle cx="24" cy="39" r="13"/><circle cx="40" cy="39" r="13"/>' +
+        '<path d="M32 15 C28.5 9.5 21 10.5 21.5 16 C22 20.5 32 26 32 26 C32 26 42 20.5 42.5 16 C43 10.5 35.5 9.5 32 15 Z" fill="currentColor" stroke="none"/>' +
+        '</svg>';
+    },
+    heart: function () {
+      return '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 86 C20 64 12 40 28 30 C40 22 48 30 50 38 C52 30 60 22 72 30 C88 40 80 64 50 86 Z" fill="currentColor"/></svg>';
+    },
     moon: function () {
       return '<svg class="moon" viewBox="0 0 100 100" aria-hidden="true">' +
         '<defs><radialGradient id="mg" cx="40%" cy="40%" r="60%"><stop offset="0" stop-color="#fff3c4"/><stop offset="1" stop-color="#e9b949"/></radialGradient></defs>' +

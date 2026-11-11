@@ -116,18 +116,18 @@ button { font: inherit; color: inherit; }
 .actions .btn { flex: 1 1 220px; }
 
 /* ---------- Главный экран ---------- */
-.hero { position: relative; text-align: center; padding: 18px 0 6px; }
+.hero { position: relative; text-align: center; padding: 10px 0 4px; }
 .hero .moon { position: absolute; right: 2px; top: 6px; width: 64px; height: 64px; filter: drop-shadow(0 0 18px rgba(255, 220, 140, .55)); }
-.title { font-size: 2.15rem; margin: 18px 0 14px; letter-spacing: .01em; text-shadow: 0 2px 18px rgba(243, 207, 115, .35); }
+.title { font-size: 2.15rem; margin: 14px 0 10px; letter-spacing: .01em; text-shadow: 0 2px 18px rgba(243, 207, 115, .35); }
 .greet { font-size: 1.35rem; font-weight: 700; margin: 0 0 4px; color: var(--text); }
-.today { font-size: 1.1rem; color: var(--text-2); margin: 0 0 18px; }
+.today { font-size: 1.1rem; color: var(--text-2); margin: 0 0 16px; }
 
-.tiles { display: grid; gap: 16px; }
+.tiles { display: grid; gap: 14px; }
 .tile {
   display: flex; align-items: center; gap: 16px;
   width: 100%;
-  min-height: 112px;
-  padding: 16px 16px 16px 14px;
+  min-height: 100px;
+  padding: 14px 16px 14px 14px;
   text-align: left;
   border-radius: var(--radius);
   border: 2px solid var(--line);
@@ -319,10 +319,67 @@ button { font: inherit; color: inherit; }
 .lucky-val.num { font-family: var(--serif); font-size: 1.6rem; color: var(--gold); }
 .swatch { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; }
 
+/* ---------- Загрузка, ожидание рекламы, пауза ---------- */
+.loading { text-align: center; font-size: 1.2rem; color: var(--text-2); padding: 40vh 0 0; margin: 0; }
+.adwait { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(5, 3, 20, .72); }
+.adwait[hidden] { display: none; }
+.adwait-box { display: flex; align-items: center; gap: 14px; padding: 20px 26px; border-radius: 18px; background: var(--panel-solid); border: 2px solid var(--gold); font-size: 1.15rem; font-weight: 700; }
+.spinner { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 4px solid rgba(243, 207, 115, .3); border-top-color: var(--gold); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+body.paused *, body.paused *::before, body.paused *::after { animation-play-state: paused !important; }
+.app[inert] { pointer-events: none; }
+
+/* ---------- Гороскоп на завтра ---------- */
+.tomorrow { margin: 18px 0 4px; padding: 18px 16px; border-radius: 18px; border: 2px dashed rgba(243, 207, 115, .6); background: rgba(20, 14, 60, .55); }
+.tomorrow-lead { font-size: 1.05rem; font-weight: 700; text-align: center; margin: 0 0 12px; }
+.btn-reward { line-height: 1.25; text-align: center; padding-left: 18px; padding-right: 18px; }
+.btn-reward .play { font-size: .9em; }
+.tomorrow.is-open { border-style: solid; border-color: var(--gold); background: rgba(36, 26, 92, .55); padding: 16px 12px 12px; }
+.tomorrow-title { font-size: 1.4rem; margin: 0 0 4px; }
+.tomorrow .lead { font-weight: 700; color: var(--text); }
+.tomorrow .horo-part { background: rgba(20, 14, 60, .7); }
+.part-title { font-family: var(--serif); font-size: 1.15rem; font-weight: 700; color: var(--gold); line-height: 1.2; margin: 0 0 .3em; }
+
+/* ---------- Совместимость: выбор пары ---------- */
+.pair-slots { display: flex; align-items: stretch; gap: 8px; margin: 6px 0 8px; }
+.slot {
+  flex: 1 1 0; min-width: 0; min-height: 132px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 10px 6px; border-radius: var(--radius);
+  border: 2px solid var(--line); background: rgba(20, 14, 60, .65);
+  cursor: pointer; touch-action: manipulation; text-align: center;
+}
+.slot.is-active { border-color: #fff; box-shadow: 0 0 0 3px rgba(243, 207, 115, .55); background: rgba(60, 42, 140, .9); }
+.slot-label { font-size: 16px; color: var(--text-2); font-weight: 700; }
+.slot .sign-glyph { width: 46px; height: 46px; }
+.slot-name { font-family: var(--serif); font-size: 1.2rem; font-weight: 700; color: var(--gold); line-height: 1.2; }
+.slot-name.muted { font-family: var(--sans); font-size: 1rem; font-weight: 400; color: var(--text); }
+.slot-empty { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; border: 2px dashed var(--line); color: var(--gold); font-size: 1.4rem; font-weight: 700; }
+.slot-plus { flex: none; align-self: center; width: 30px; height: 30px; color: #ff9fb0; }
+.slot-plus svg { width: 100%; height: 100%; }
+.pick-hint { font-size: 1.05rem; font-weight: 700; text-align: center; color: var(--gold); margin: 6px 0 12px; }
+.sign.is-picked { border-color: var(--gold); background: linear-gradient(160deg, rgba(243, 207, 115, .35), rgba(60, 42, 140, .9)); }
+
+/* ---------- Совместимость: результат ---------- */
+.pair-top { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.pair-head { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 4px; }
+.pair-heart { width: 40px; height: 40px; color: #ff9fb0; }
+.pair-heart svg { width: 100%; height: 100%; }
+.pair-names { margin: 12px 0 8px; font-size: 1.65rem; }
+.pct { position: relative; width: 150px; height: 150px; margin: 0 auto; }
+.pct svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.pct-bg { fill: rgba(20, 14, 60, .6); stroke: rgba(243, 207, 115, .22); stroke-width: 12; }
+.pct-fg { fill: none; stroke: var(--gold); stroke-width: 12; stroke-linecap: round; animation: pct-fill 1.1s ease-out both; }
+@keyframes pct-fill { from { stroke-dashoffset: var(--full); } }
+.pct-num { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--serif); font-size: 2.3rem; font-weight: 700; color: var(--gold); }
+.pct-label { font-size: 1.15rem; font-weight: 700; margin: 8px 0 4px; }
+.pair-title { text-align: center; font-size: 1.4rem; font-style: italic; margin: 14px 0 10px; }
+.pair-intro { margin-bottom: 14px; }
+
 /* ---------- Плашка «Скопировано» и окно копирования ---------- */
 .toast {
   position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom));
-  z-index: 50;
+  z-index: 80;
   transform: translate(-50%, 20px);
   width: calc(100% - 32px); max-width: 520px;
   padding: 16px 20px;
@@ -343,6 +400,21 @@ button { font: inherit; color: inherit; }
 .copybox textarea { width: 100%; font: inherit; font-size: 1rem; padding: 12px; border-radius: 12px; border: 2px solid var(--gold); background: #fffaf0; color: #1d1440; margin-bottom: 14px; resize: none; }
 .copybox .btn { width: 100%; }
 
+
+/* ---------- Окно «Поделиться» (share.js) — переносится в другие мини-приложения ---------- */
+.share-sheet { position: fixed; inset: 0; z-index: 65; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(5, 3, 20, .78); overflow-y: auto; }
+.share-sheet[hidden] { display: none; }
+.share-inner { width: 100%; max-width: 520px; margin: auto 0 0; padding: 18px 16px 16px; border-radius: 20px; background: var(--panel-solid); border: 2px solid var(--gold); box-shadow: 0 -10px 40px rgba(0, 0, 0, .5); }
+.share-title { font-family: var(--serif); font-size: 1.35rem; font-weight: 700; color: var(--gold); text-align: center; margin: 0 0 12px; }
+.share-preview { display: grid; place-items: center; min-height: 120px; margin: 0 auto 14px; }
+.share-preview img { display: block; width: auto; max-width: 100%; max-height: 38vh; border-radius: 12px; border: 2px solid rgba(243, 207, 115, .6); }
+.share-wait { color: var(--text-2); margin: 0; }
+.share-buttons { display: grid; gap: 12px; }
+.share-buttons .btn { width: 100%; }
+.btn:disabled { opacity: .55; cursor: wait; }
+.btn-ghost { width: 100%; margin-top: 12px; color: var(--text); background: transparent; border-color: rgba(255, 248, 232, .45); }
+.btn-ghost:hover { border-color: var(--text); }
+
 /* ---------- Широкие экраны и альбом ---------- */
 @media (min-width: 560px) {
   .signs { grid-template-columns: repeat(3, 1fr); }
@@ -357,8 +429,8 @@ button { font: inherit; color: inherit; }
   .title { font-size: 1.8rem; margin: 4px 0 6px; }
   .title br { display: none; }
   .today { margin-bottom: 12px; }
-  .tiles { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .tile { flex-direction: column; text-align: center; min-height: 0; padding: 14px 10px; gap: 8px; }
+  .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .tile { min-height: 0; padding: 10px 12px; gap: 12px; }
   .tile-icon { width: 58px; height: 58px; }
   .tile-icon svg { width: 44px; height: 44px; }
   .tile-arrow { display: none; }
@@ -377,6 +449,17 @@ button { font: inherit; color: inherit; }
 
   .signs { grid-template-columns: repeat(4, 1fr); }
   .sign { min-height: 130px; }
+
+  .pair-top { flex-direction: row; justify-content: center; gap: 28px; text-align: left; }
+  .pair-sum { display: flex; flex-direction: column; align-items: center; }
+  .pct { width: 120px; height: 120px; }
+  .pct-num { font-size: 1.9rem; }
+  .slot { min-height: 104px; }
+  .share-inner { max-width: 760px; display: grid; grid-template-columns: auto 1fr; column-gap: 18px; align-items: start; }
+  .share-title, .share-close { grid-column: 1 / -1; }
+  .share-preview { grid-column: 1; margin: 0; }
+  .share-preview img { max-height: 52vh; }
+  .share-buttons { grid-column: 2; }
 }
 
 /* Компьютер: колонка по центру */
