@@ -16,7 +16,7 @@ window.APP_CONFIG = {
   /* ID приложения ВКонтакте (число из адреса vk.com/app123456). Пока пусто — ссылки ведут на GitHub Pages. */
   vkAppId: '54891238',
   /* ID (или короткое имя) приложения в Одноклассниках: ok.ru/game/<это>. Пока пусто — в ОК делимся без ссылки. */
-  okAppId: '',
+  okAppId: '512005656323',
   /* Постоянная тестовая ссылка (GitHub Pages) — запасная ссылка «поделиться». */
   pagesUrl: 'https://romangerasimov71-spec.github.io/fortune-horoscope-/',
 
