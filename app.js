@@ -392,7 +392,14 @@
       '</nav>' +
       '<p class="footnote">Для развлечения</p>' +
       // канал поддержки (требование ВК): config.js SUPPORT, обычным текстом; пусто — строки нет
-      (CFG.SUPPORT ? '<p class="footnote support-note">Поддержка и новинки: ' + esc(CFG.SUPPORT) + '</p>' : '');
+      (supportText() ? '<p class="footnote support-note">Поддержка и новинки: ' + esc(supportText()) + '</p>' : '');
+  }
+  // В ОК — только группа ОК (ни vk.com, ни «ВКонтакте» — риск отказа ОК), во ВК и в браузере — сообщество ВК.
+  function supportText() {
+    var sp = CFG.SUPPORT;
+    if (!sp) return '';
+    if (typeof sp === 'string') return sp;
+    return ((P && P.shareKind && P.shareKind() === 'ok') ? sp.ok : sp.vk) || '';
   }
   function tile(hash, icon, title, sub) {
     return '<button type="button" class="tile" data-go="' + hash + '">' +

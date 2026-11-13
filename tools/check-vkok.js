@@ -27,13 +27,14 @@ for(const [where,q] of cases) for(const net of where==='web'?['none']:['fake','b
  await p.click('[data-action=share]');await p.waitForSelector('#share-sheet:not([hidden])');await p.waitForTimeout(800);
  const txt=await p.evaluate(()=>document.body.innerText+' '+[...document.querySelectorAll('a[href]')].map(a=>a.href).join(' '));
  const btns=await p.evaluate(()=>[...document.querySelectorAll('#share-sheet button')].map(b=>b.textContent.trim()));
- if(where==='ok') ok(!/ВКонтакте|vk\.com\/app|github\.io/i.test(txt),L+': в ОК нет ВКонтакте/vk.com/app/github.io; кнопки '+btns.join(' | '));
+ if(where==='ok') ok(!/ВКонтакте|vk\.com|github\.io/i.test(txt),L+': в ОК нет ВКонтакте/vk.com/github.io; кнопки '+btns.join(' | '));
+ ok(st.sup==='Поддержка и новинки: '+(where==='ok'?'ok.ru/group/70000061487179':'vk.com/club243202759'),L+': строка поддержки «'+st.sup+'»');
  if(where==='vk') ok(!/Одноклассник|ok\.ru|github\.io/i.test(txt),L+': во ВК нет ОК/github.io; кнопки '+btns.join(' | '));
  if(where==='web') ok(true,L+': кнопки '+btns.join(' | '));
  if(net==='fake'&&where!=='web'){
    await p.click('#share-sheet .btn-gold');await p.waitForTimeout(400);
    const calls=await p.evaluate(()=>(window.__vkb||[]).filter(c=>/Share|Story/.test(c.m)));
-   ok(calls.length===1 && (where==='ok'? calls[0].m==='VKWebAppShare' && !calls[0].p.link : true), L+': вызов '+JSON.stringify(calls).slice(0,160));
+   ok(calls.length===1 && (where==='ok'? calls[0].m==='VKWebAppShare' && (!calls[0].p.link || /^https:\/\/ok\.ru\/game\//.test(calls[0].p.link)) : true), L+': вызов '+JSON.stringify(calls).slice(0,160));
  }
  // copy text
  ok(errs.filter(e=>!/Failed to load|ERR_FAILED|unpkg/.test(e)).length===0,L+': ошибок нет '+JSON.stringify(errs.slice(0,2)));
